@@ -1,0 +1,17 @@
+{
+  "exclude": ["node_modules","dist"],
+  "compilerOptions": {
+    "baseUrl": "./",
+    "paths": {
+      "core": ["src/core"],
+      "locale": ["src/locale"],
+      "global": ["src/global"],
+      "plugin": ["src/plugin"],
+      "utils": ["src/utils"],
+      "mixins": ["packages/mixins"],
+      "common": ["packages/core"],
+      "packages": ["packages"],
+    }
+  },
+
+}
