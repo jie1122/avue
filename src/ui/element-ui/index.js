@@ -22,6 +22,7 @@ import InputTree from 'packages/element-ui/input-tree';
 import InputMap from 'packages/element-ui/input-map';
 import InputIcon from 'packages/element-ui/input-icon';
 import InputTable from 'packages/element-ui/input-table';
+import dataLoad from 'packages/element-ui/data-load';
 import Verifys from 'packages/element-ui/verify';
 import Switchs from 'packages/element-ui/switch';
 import Rate from 'packages/element-ui/rate';
@@ -63,6 +64,7 @@ export default {
   InputIcon,
   InputMap,
   InputTable,
+  dataLoad,
   Switchs,
   Rate,
   Upload,

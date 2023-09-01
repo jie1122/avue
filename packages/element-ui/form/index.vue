@@ -182,7 +182,7 @@
 import { detail } from "core/detail";
 import create from "core/create";
 import init from "common/common/init";
-import formTemp from 'common/components/form/index'
+import formTemp from 'common/components/form/index.vue'
 import formMenu from './menu'
 import { DIC_PROPS } from 'global/variable';
 import { getComponent, getPlaceholder, formInitVal, calcCount, calcCascader } from "core/dataformat";
@@ -729,4 +729,3 @@ export default create({
   }
 });
 </script>
-
