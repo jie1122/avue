@@ -1,13 +1,6 @@
 <template>
   <div :class="b()">
-    <el-button 
-      type="primary"
-      :size="size"
-      @click="handleShow"
-      :disabled="disabled"
-    >
-      <slot>数据加载</slot>
-    </el-button>
+
     <div v-if="box">
       <el-dialog class="avue-dialog"
                  :width="dialogWidth"
@@ -22,9 +15,9 @@
                    :data="data"
                    :table-loading="loading"
                    @on-load="onList"
+                   @selection-change="selectionChange"
                    @search-change="handleSearchChange"
                    @search-reset="handleSearchChange"
-                   @current-row-change="handleCurrentChange"
                    v-model:page="page"
                    v-model:search="search"
                    ></avue-crud>
@@ -35,18 +28,19 @@
                    :data="data"
                    :table-loading="loading"
                    @on-load="onList"
+                   @selection-change="selectionChange"
                    @search-change="handleSearchChange"
                    @search-reset="handleSearchChange"
-                   @current-row-change="handleCurrentChange"
                    v-model:search="search"
                    ></avue-crud>
                    
         <template #footer>
           <span class="dialog-footer">
+				    <el-button @click="box = false">{{ t("common.cancelBtn") }}</el-button>
             <el-button type="primary"
                        :size="size"
                        icon="el-icon-check"
-                       @click="setVal">{{t("common.submitBtn")}}</el-button>
+                       @click="onSubmit">{{t("common.submitBtn")}}</el-button>
           </span>
         </template>
 
@@ -64,13 +58,14 @@ import locale from "core/locale";
 import { getAsVal } from "utils/util";
 
 export default create({
-  name: "data-load",
-  mixins: [props(), event(), locale],
+  name: "dynamic-data-load",
+  mixins: [ locale],
   inject: ["formSafe"],
 
   data () {
     return {
-      active: {},
+      selectedRows:[],
+
       page: {},
       search:{},
       loading: false,
@@ -80,7 +75,9 @@ export default create({
     };
   },
   props: {
-
+    size:String,
+    text:[], //子表单数据
+    column:{} , //子表单配置
     dialogWidth: {
       type: String,
       default: '80%'
@@ -90,19 +87,19 @@ export default create({
 
     option () {
       return Object.assign({
-        menu: false,
-        header: false,
+        menu: false, //显示操作列
+        header: false,  //显示头部操作栏
         size: this.size,
         headerAlign: 'center',
         align: 'center',
-        highlightCurrentRow: true,
-      }, this.column.children)
+        selection: true,
+      }, this.column.dataLoad)
     },
     cProps(){
-      return this.column.children.props || {}
+      return this.column.dataLoad.props || {}
     },
     cColumn(){
-      return this.column.children.column
+      return this.column.dataLoad.column
     }
   },
   methods: {
@@ -115,33 +112,42 @@ export default create({
         total: 0
       }
       // 将表单数据, 根据映射关系赋值到搜索框作为默认搜索条件
-      const formData = this.formSafe.form
-      this.cColumn.forEach(e => {
-        if (e.target && e.search && Object.hasOwnProperty.call(formData, e.target)) {
-          this.search[e.prop] = formData[e.target]
-        }
-      })
+      // const formData = this.formSafe.form
+      // this.cColumn.forEach(e => {
+      //   if (e.target && e.search && Object.hasOwnProperty.call(formData, e.target)) {
+      //     this.search[e.prop] = formData[e.target]
+      //   }
+      // })
       this.box = true;
     },
-    setVal () {
-      // 将选中的行数据, 根据映射关系赋值给表单对应属性
-      const formData = this.formSafe.form
-      this.cColumn.forEach(e => {
-        if (e.target && Object.hasOwnProperty.call(formData, e.target)) {
-          formData[e.target] = this.active[e.prop]
+
+    // 将选中数据插入子表单数据中
+    async onSubmit  ()  {
+      this.text.splice(0)
+      this.selectedRows.forEach((row,i) => {
+        let newRow = {
+          $cellEdit:true,
+          $index:this.text.length + i
         }
+        this.cColumn.forEach(e => {
+          if (e.target ) {
+            newRow[e.target] = row[e.prop]
+          }
+        })
+
+        this.text.push(newRow)
       })
-      this.box = false
-    },
+      this.box = false;
+    },    
     // 表格选中行变化
-    handleCurrentChange (val) {
-      this.active = val;
+    selectionChange  (list)  {
+      this.selectedRows = list
     },
     handleSearchChange (form, done) {
       done && done()
       this.loadData(done)
     },
-    onList (callback) {
+    onList () {
       this.loadData()
     },
     loadData(done){

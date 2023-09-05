@@ -1,6 +1,20 @@
 <template>
   <div :class="b()"
-       :key="reload">
+    :key="reload"
+    style="position: relative;"
+  >
+    <el-button v-if="column.dataLoad && column.dataLoad.props.auto"
+      style="position: absolute; right: 30px;top:-25px;"
+      link
+      @click="$refs.loadDataRef.handleShow()"
+      type="primary"
+      :size="size"
+      :disabled="disabled"
+    >
+      <slot>数据加载</slot>
+    </el-button>
+
+
     <template v-if="isForm">
       <div :class="b('header')">
         <el-button :size="size"
@@ -75,6 +89,13 @@
       </template>
 
     </avue-crud>
+
+    <dataLoad ref="loadDataRef" 
+      :column="column"  
+      :size="size" 
+      :text="text"
+    ></dataLoad>
+
   </div>
 </template>
 
@@ -83,9 +104,16 @@ import create from "core/create";
 import props from "common/common/props.js";
 import event from "common/common/event.js";
 import { getColumn } from 'utils/util'
+import dataLoad from './dataLoad.vue'
+
 export default create({
   name: "dynamic",
   mixins: [props(), event()],
+  inject: ["formSafe"],
+
+  components:{
+    dataLoad,
+  },
   data () {
     return {
       reload: Math.random(),
