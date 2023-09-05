@@ -76,8 +76,8 @@ export default create({
   },
   props: {
     size:String,
-    text:[], //子表单数据
-    column:{} , //子表单配置
+    text:Array, //子表单数据
+    column:Object , //子表单配置
     dialogWidth: {
       type: String,
       default: '80%'

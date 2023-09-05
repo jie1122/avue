@@ -1,6 +1,6 @@
 {
   "name": "@jie5432110/avue",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "A Magic Configurable Web Framework",
   "main": "lib/avue.min.js",
   "unpkg": "lib/avue.min.js",
