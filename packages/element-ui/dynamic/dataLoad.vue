@@ -10,7 +10,7 @@
                  v-model="box">
         <avue-crud :class="b('crud')"
                    ref="crud"
-                   v-if="box&&cProps.needPage"
+                   v-if="box&&loadProps.needPage"
                    :option="option"
                    :data="data"
                    :table-loading="loading"
@@ -23,7 +23,7 @@
                    ></avue-crud>
         <avue-crud :class="b('crud')"
                    ref="crud"
-                   v-if="box&&!cProps.needPage"
+                   v-if="box&&!loadProps.needPage"
                    :option="option"
                    :data="data"
                    :table-loading="loading"
@@ -95,10 +95,10 @@ export default create({
         selection: true,
       }, this.column.dataLoad)
     },
-    cProps(){
+    loadProps(){
       return this.column.dataLoad.props || {}
     },
-    cColumn(){
+    loadColumn(){
       return this.column.dataLoad.column
     }
   },
@@ -112,12 +112,12 @@ export default create({
         total: 0
       }
       // 将表单数据, 根据映射关系赋值到搜索框作为默认搜索条件
-      // const formData = this.formSafe.form
-      // this.cColumn.forEach(e => {
-      //   if (e.target && e.search && Object.hasOwnProperty.call(formData, e.target)) {
-      //     this.search[e.prop] = formData[e.target]
-      //   }
-      // })
+      const formData = this.formSafe.form
+      this.loadColumn.forEach(e => {
+        if (e.searchSource && Object.hasOwnProperty.call(formData, e.searchSource)) {
+          this.search[e.prop] = formData[e.searchSource]
+        }
+      })
       this.box = true;
     },
 
@@ -129,7 +129,7 @@ export default create({
           $cellEdit:true,
           $index:this.text.length + i
         }
-        this.cColumn.forEach(e => {
+        this.loadColumn.forEach(e => {
           if (e.target ) {
             newRow[e.target] = row[e.prop]
           }
@@ -151,47 +151,12 @@ export default create({
       this.loadData()
     },
     loadData(done){
-      if (!this.cProps) return
-      const { url,tableName, method, needPage, currentPageKey, pageSizeKey, totalKey, recordsKey, resKey, auto } = this.cProps
+      if (!this.loadProps) return
+      const { url,tableName, method, needPage, currentPageKey, pageSizeKey, totalKey, recordsKey, resKey, auto,sourceType } = this.loadProps
 
       if (!auto || !url) return 
-      let page = this.page
-      let data = this.search
       // 分页相关
-      if (!page) page = { currentPage: 1, pageSize: 10 }
-      const { currentPage, pageSize } = page
-      const params = {
-        [currentPageKey]: currentPage,
-        [pageSizeKey]: pageSize 
-      }
-
-      // 构造查询条件
-      const queryColumns = [] // 要查询的列
-      const whereColumnList = [] // 查询条件
-      this.cColumn.forEach(col => {
-        queryColumns.push(col.prop)
-        if (['key_80','key_70'].includes( col.whereType) ) {
-          // 将IS NULL ,IS NOT NULL 添加到搜索条件
-          whereColumnList.push({
-            columnName:col.prop ,
-            whereType: col.whereType , 
-          })          
-        }else if ( data[col.prop] !== null && data[col.prop] !== undefined  && data[col.prop] !== '') {
-        // 将有值的字段添加到搜索条件
-          whereColumnList.push({
-            columnName:col.prop ,
-            columnValue: data[col.prop],
-            whereType: col.whereType || 'key_10', //默认为相等
-          })
-        }
-      })
-      
-      // 查询参数
-      const queryData = {
-        tableName:tableName, //表名
-        queryColumns  ,
-        whereColumnList   
-      }
+      const {params,queryData}  =  this.handleParams()
 
       this.loading = true;
       this.$axios({
@@ -229,6 +194,60 @@ export default create({
         done && done()
       })
 
+    },
+
+    // 查询参数处理
+    handleParams(){
+      const { url,tableName, method, needPage, currentPageKey, pageSizeKey, totalKey, recordsKey, resKey, auto,sourceType } = this.loadProps
+
+      // 分页参数
+      const { currentPage, pageSize } = this.page
+      const params = {
+        [currentPageKey]: currentPage,
+        [pageSizeKey]: pageSize 
+      }
+      let queryData = {} // 查询参数
+
+      if (sourceType == 'custom') {
+        // 自定义查询,将search合并到查询参数
+        if (method == 'get') {
+          Object.assign(params,this.search)
+        }else {
+          Object.assign(queryData,this.search)
+        }
+      }else{
+        // 通用查询  构造查询条件
+        const queryColumns = [] // 要查询的列
+        const whereColumnList = [] // 查询条件
+        this.loadColumn.forEach(col => {
+          queryColumns.push(col.prop)
+          if (['key_80','key_70'].includes( col.whereType) ) {
+            // 将IS NULL ,IS NOT NULL 添加到搜索条件
+            whereColumnList.push({
+              columnName:col.prop ,
+              whereType: col.whereType , 
+            })          
+          }else if ( this.search[col.prop] !== null && this.search[col.prop] !== undefined  && this.search[col.prop] !== '') {
+          // 将有值的字段添加到搜索条件
+            whereColumnList.push({
+              columnName:col.prop ,
+              columnValue: this.search[col.prop],
+              whereType: col.whereType || 'key_10', //默认为相等
+            })
+          }
+        })
+        
+        // 查询参数
+        queryData = {
+          tableName:tableName, //表名
+          queryColumns ,
+          whereColumnList   
+        }
+
+      }
+
+      return  {params,queryData}
+      
     }
   }
 });
