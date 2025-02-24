@@ -11,6 +11,7 @@
                :disabled-seconds="disabledSeconds"
                :default-value="defaultValue"
                :range-separator="rangeSeparator"
+               @visible-change="visibleChange"
                :arrow-control="arrowControl"
                :start-placeholder="startPlaceholder || t('time.start')"
                :end-placeholder="endPlaceholder || t('time.end')"
@@ -42,7 +43,10 @@ export default create({
     return {};
   },
   props: {
-    editable: Boolean,
+    editable: {
+      type: Boolean,
+      default: true
+    },
     maxTime: String,
     minTime: String,
     start: String,
@@ -56,6 +60,7 @@ export default create({
     arrowControl: Boolean,
     type: String,
     format: String,
+    visibleChange: Function,
     disabledHours: Function,
     disabledMinutes: Function,
     disabledSeconds: Function

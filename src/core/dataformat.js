@@ -7,7 +7,7 @@ import { t } from 'locale';
  */
 export const calcCascader = (list = []) => {
   list.forEach(ele => {
-    let cascader = ele.cascader
+    let cascader = ele.cascader;
     if (!validatenull(cascader)) {
       let parentProp = ele.prop;
       cascader.forEach(citem => {
@@ -41,7 +41,7 @@ export const calcCount = (ele, spanDefault = 12, init = false) => {
  * 初始化数据格式
  */
 export const initVal = (value, safe) => {
-  let { type, multiple, dataType, separator = DIC_SPLIT, alone, emitPath, range } = safe
+  let { type, multiple, dataType, separator = DIC_SPLIT, alone, emitPath, range } = safe;
   let list = value;
   if (
     (MULTIPLE_LIST.includes(type) && multiple == true) ||
@@ -52,7 +52,11 @@ export const initVal = (value, safe) => {
       if (validatenull(list)) {
         list = [];
       } else {
-        list = (list + '').split(separator) || [];
+        if (dataType == 'json') {
+          list = JSON.parse(list);
+        } else {
+          list = (list + '').split(separator) || [];
+        }
       }
     }
     // 数据转化
@@ -61,7 +65,7 @@ export const initVal = (value, safe) => {
     });
     if (ARRAY_LIST.includes(type) && validatenull(list) && alone) list = [''];
   } else {
-    list = detailDataType(list, dataType)
+    list = detailDataType(list, dataType);
   }
   return list;
 };
@@ -120,17 +124,18 @@ export const formInitVal = (list = []) => {
   let tableForm = {};
   list.forEach(ele => {
     if (
-      ARRAY_VALUE_LIST.includes(ele.type) ||
+      ['rate', 'slider', 'number'].includes(ele.type) ||
+      ele.dataType === 'number' ||
+      (ele.type == 'select' && ele.virtualize == true)
+    ) {
+      tableForm[ele.prop] = undefined;
+    } else if (
+      (ARRAY_VALUE_LIST.includes(ele.type) && ele.emitPath !== false && ele.dataType != 'json') ||
       (MULTIPLE_LIST.includes(ele.type) && ele.multiple) || ele.dataType === 'array'
     ) {
       tableForm[ele.prop] = [];
     } else if (RANGE_LIST.includes(ele.type) && ele.range == true) {
-      tableForm[ele.prop] = [0, 0]
-    } else if (
-      ['rate', 'slider', 'number'].includes(ele.type) ||
-      ele.dataType === 'number'
-    ) {
-      tableForm[ele.prop] = undefined;
+      tableForm[ele.prop] = [0, 0];
     } else {
       tableForm[ele.prop] = '';
     }
@@ -142,7 +147,7 @@ export const formInitVal = (list = []) => {
       tableForm[ele.prop] = ele.value;
     }
   });
-  return tableForm
+  return tableForm;
 
 };
 

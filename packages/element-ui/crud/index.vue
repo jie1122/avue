@@ -21,6 +21,7 @@
     </header-search>
     <el-card :shadow="isCard"
              :class="b('body')">
+      <slot name="header"></slot>
       <!-- 表格功能列 -->
       <header-menu ref="headerMenu"
                    v-if="validData(tableOption.header,true)">
@@ -44,61 +45,70 @@
               @click="clearSelection">{{t('crud.emptyBtn')}}</span>
         <slot name="tip"></slot>
       </div>
-      <slot name="header"></slot>
+      <slot name="body"></slot>
       <el-form :model="cellForm"
                :show-message="false"
                @validate="handleValidate"
                ref="cellForm">
-        <el-table :key="reload"
-                  :data="cellForm.list"
-                  :row-key="rowKey"
-                  :class="{'avue-crud--indeterminate':validData(tableOption.indeterminate,false)}"
-                  :size="size"
-                  :lazy="validData(tableOption.lazy,false)"
-                  :load="treeLoad"
-                  :tree-props="treeProps"
-                  :expand-row-keys="tableOption.expandRowKeys"
-                  :default-expand-all="tableOption.defaultExpandAll"
-                  :highlight-current-row="tableOption.highlightCurrentRow"
-                  @current-change="currentRowChange"
-                  @expand-change="expandChange"
-                  @header-dragend="headerDragend"
-                  :show-summary="tableOption.showSummary"
-                  :summary-method="tableSummaryMethod"
-                  :span-method="tableSpanMethod"
-                  :stripe="tableOption.stripe"
-                  :show-header="tableOption.showHeader"
-                  :default-sort="tableOption.defaultSort"
-                  @row-click="rowClick"
-                  @row-dblclick="rowDblclick"
-                  @cell-mouse-enter="cellMouseEnter"
-                  @cell-mouse-leave="cellMouseLeave"
-                  @cell-click="cellClick"
-                  @header-click="headerClick"
-                  @row-contextmenu="rowContextmenu"
-                  @header-contextmenu="headerContextmenu"
-                  @cell-dblclick="cellDblclick"
-                  :row-class-name="rowClassName"
-                  :cell-class-name="cellClassName"
-                  :row-style="rowStyle"
-                  :cell-style="cellStyle"
-                  :fit="tableOption.fit"
-                  :header-cell-class-name="headerCellClassName"
-                  :max-height="isAutoHeight?tableHeight:tableOption.maxHeight"
-                  :height="tableHeight"
-                  ref="table"
-                  :width="setPx(tableOption.width,config.width)"
-                  :border="tableOption.border"
-                  v-loading="tableLoading"
-                  :element-loading-text="tableOption.loadingText"
-                  :element-loading-spinner="tableOption.loadingSpinner"
-                  :element-loading-svg="tableOption.loadingSvg"
-                  :element-loading-background="tableOption.loadingBackground"
-                  @filter-change="filterChange"
-                  @selection-change="selectionChange"
-                  @select="select"
-                  @select-all="selectAll"
-                  @sort-change="sortChange">
+        <component :is="tableName"
+                   :key="reload"
+                   :data="cellForm.list"
+                   :row-key="rowKey"
+                   :class="{'avue-crud--indeterminate':validData(tableOption.indeterminate,false)}"
+                   :size="size"
+                   :lazy="validData(tableOption.lazy,false)"
+                   :load="treeLoad"
+                   :tree-props="treeProps"
+                   :flexible="tableOption.flexible"
+                   :table-layout="tableOption.tableLayout"
+                   :expand-row-keys="tableOption.expandRowKeys"
+                   :default-expand-all="tableOption.defaultExpandAll"
+                   :highlight-current-row="tableOption.highlightCurrentRow"
+                   :tooltip-effect="tableOption.tooltipEffect"
+                   :tooltip-options="tableOption.tooltipOptions"
+                   :show-overflow-tooltip="tableOption.showOverflowTooltip || tableOption.overHidden"
+                   @current-change="currentRowChange"
+                   @expand-change="expandChange"
+                   @header-dragend="headerDragend"
+                   :show-summary="tableOption.showSummary"
+                   :summary-method="tableSummaryMethod"
+                   :span-method="tableSpanMethod"
+                   :stripe="tableOption.stripe"
+                   :show-header="tableOption.showHeader"
+                   :default-sort="tableOption.defaultSort"
+                   @row-click="rowClick"
+                   @row-dblclick="rowDblclick"
+                   @cell-mouse-enter="cellMouseEnter"
+                   @cell-mouse-leave="cellMouseLeave"
+                   @cell-click="cellClick"
+                   @header-click="headerClick"
+                   @row-contextmenu="rowContextmenu"
+                   @header-contextmenu="headerContextmenu"
+                   @cell-dblclick="cellDblclick"
+                   :row-class-name="rowClassName"
+                   :cell-class-name="cellClassName"
+                   :row-style="rowStyle"
+                   :cell-style="cellStyle"
+                   :fit="tableOption.fit"
+                   :header-cell-class-name="headerCellClassName"
+                   :header-row-class-name="headerRowClassName"
+                   :header-row-style="headerRowStyle"
+                   :header-cell-style="headerCellStyle"
+                   :max-height="isAutoHeight?tableHeight:tableOption.maxHeight"
+                   :height="tableHeight"
+                   ref="table"
+                   :width="setPx(tableOption.width,config.width)"
+                   :border="tableOption.border"
+                   v-loading.lock="tableLoading"
+                   :element-loading-text="tableOption.loadingText"
+                   :element-loading-spinner="tableOption.loadingSpinner"
+                   :element-loading-svg="tableOption.loadingSvg"
+                   :element-loading-background="tableOption.loadingBackground"
+                   @filter-change="filterChange"
+                   @selection-change="selectionChange"
+                   @select="select"
+                   @select-all="selectAll"
+                   @sort-change="sortChange">
           <template #empty>
             <div :class="b('empty')">
               <slot name="empty"
@@ -137,10 +147,18 @@
                   <slot name="menu-btn"
                         v-bind="scope"></slot>
                 </template>
+                <template #menu-before="scope">
+                  <slot name="menu-before"
+                        v-bind="scope"></slot>
+                </template>
+                <template #menu-btn-before="scope">
+                  <slot name="menu-btn-before"
+                        v-bind="scope"></slot>
+                </template>
               </column-menu>
             </template>
           </column>
-        </el-table>
+        </component>
       </el-form>
       <slot name="footer"></slot>
     </el-card>
@@ -161,6 +179,10 @@
         <slot name="menu-form"
               v-bind="scope"></slot>
       </template>
+      <template #menu-form-before="scope">
+        <slot name="menu-form-before"
+              v-bind="scope"></slot>
+      </template>
     </dialog-form>
     <dialog-excel ref="dialogExcel"></dialog-excel>
     <dialog-column ref="dialogColumn"></dialog-column>
@@ -173,6 +195,8 @@ import packages from "core/packages";
 import locale from "core/locale";
 import permission from 'common/directive/permission';
 import init from "common/common/init.js";
+import tableCard from './grid/index'
+import tableItemCard from './grid/item'
 import tablePage from "./menu/table-page";
 import headerSearch from "./menu/header-search";
 import headerMenu from "./menu/header-menu";
@@ -190,7 +214,7 @@ import { CommonProps } from "element-plus";
 import { getColumn } from 'utils/util'
 export default create({
   name: "crud",
-  mixins: [init(), locale],
+  mixins: [init('crud'), locale],
   emits: [
     'update:modelValue',
     'tree-load',
@@ -203,6 +227,7 @@ export default create({
     'select',
     'select-all',
     'sortable-change',
+    "column-sortable-change",
     'filter',
     'filter-change',
     'sort-change',
@@ -215,8 +240,10 @@ export default create({
     'tab-click',
     'error',
     'date-change',
+    'grid-status-change',
     'update:search',
     'update:page',
+    'search-icon-change',
     'search-change',
     'search-reset',
     'on-load',
@@ -239,6 +266,8 @@ export default create({
     };
   },
   components: {
+    tableCard,
+    tableItemCard,
     column,
     columnDefault,//其它列,
     columnMenu,//操作栏，
@@ -269,7 +298,8 @@ export default create({
       cascaderFormList: {},
       btnDisabledList: {},
       btnDisabled: false,
-      default: {}
+      default: {},
+      gridShow: false
     };
   },
   mounted () {
@@ -277,6 +307,12 @@ export default create({
     this.getTableHeight();
   },
   computed: {
+    tableName () {
+      return this.gridShow ? 'tableCard' : 'elTable'
+    },
+    tableColumnName () {
+      return this.gridShow ? 'tableItemCard' : 'elTableColumn'
+    },
     size () {
       return this.tableOption.size || this.$AVUE.tableSize || this.$AVUE.size;
     },
@@ -396,18 +432,28 @@ export default create({
         this.dataInit();
       },
       deep: true
+    },
+    tableOption: {
+      handler () {
+        this.gridShow = this.tableOption.grid
+      },
+      immediate: true
     }
   },
   props: {
     spanMethod: Function,
     summaryMethod: Function,
-    rowStyle: Function,
-    cellStyle: Function,
     beforeClose: Function,
     beforeOpen: Function,
-    rowClassName: Function,
-    cellClassName: Function,
-    headerCellClassName: Function,
+    rowStyle: [Function, Object],
+    cellStyle: [Function, Object],
+    rowClassName: [Function, String],
+    cellClassName: [Function, String],
+    headerCellClassName: [Function, String],
+    headerRowClassName: [Function, String],
+    headerRowStyle: [Function, Object],
+    headerCellStyle: [Function, Object],
+    uploadSized: Function,
     uploadBefore: Function,
     uploadAfter: Function,
     uploadDelete: Function,
@@ -455,6 +501,10 @@ export default create({
     }
   },
   methods: {
+    handleGridShow () {
+      this.gridShow = !this.gridShow
+      this.$emit('grid-status-change', this.gridShow)
+    },
     handleValidate (prop, valid, msg) {
       if (!this.listError[prop]) this.listError[prop] = { valid: false, msg: '' }
 
@@ -471,19 +521,28 @@ export default create({
       }
     },
     getTableHeight () {
-      if (this.isAutoHeight) {
-        this.$nextTick(() => {
-          const tableRef = this.$refs.table
-          const tablePageRef = this.$refs.tablePage
-          if (!tableRef) return
-          const tableStyle = tableRef.$el;
-          const pageStyle = tablePageRef.$el.offsetHeight || 20;
-          this.tableHeight = document.documentElement.clientHeight - tableStyle.offsetTop - pageStyle - this.calcHeight
-        })
-      } else {
-        this.tableHeight = this.tableOption.height;
-      }
-      this.refreshTable()
+      this.$nextTick(() => {
+        if (this.isAutoHeight) {
+          const clientHeight = document.documentElement.clientHeight;
+          const calcHeight = this.calcHeight || 0;
+          const tableRef = this.$refs.table;
+          const tablePageRef = this.$refs.tablePage;
+          let tableHeight = clientHeight - calcHeight;
+          if (tableRef) {
+            const height = tableRef.$el.offsetTop || 0;
+            tableHeight -= height;
+          }
+          if (tablePageRef) {
+            const height = tablePageRef.$el.offsetHeight || 0;
+            tableHeight -= height;
+          }
+          this.tableHeight = tableHeight;
+
+        } else {
+          this.tableHeight = this.tableOption.height;
+        }
+        this.doLayout();
+      });
     },
     doLayout () {
       this.$refs.table.doLayout()
@@ -510,8 +569,8 @@ export default create({
       return this.tableOption[name] ? this.tableOption[name].trim() : config[name];
     },
     //对部分表单字段进行校验的方法
-    validateField (val) {
-      return this.$refs.dialogForm.$refs.tableForm.validateField(val);
+    validateField (val, fn) {
+      return this.$refs.dialogForm.$refs.tableForm.validateField(val, fn);
     },
     clearSelection () {
       this.$emit('selection-clear', this.deepClone(this.tableSelect))
@@ -548,9 +607,14 @@ export default create({
     },
     headerSort (oldIndex, newIndex) {
       let column = this.columnOption;
+      const notHideColumn = column.filter(ele => ele.hide != true);
+      const newColumn = notHideColumn[newIndex]
+      const oldColumn = notHideColumn[oldIndex];
+      newIndex = column.findIndex(ele => ele.prop == newColumn.prop)
+      oldIndex = column.findIndex(ele => ele.prop == oldColumn.prop)
       let targetRow = column.splice(oldIndex, 1)[0]
       column.splice(newIndex, 0, targetRow)
-      this.refreshTable()
+      this.doLayout()
     },
     clearFilter (name) {
       this.$refs.table.clearFilter(name);
@@ -568,10 +632,10 @@ export default create({
       this.$emit("refresh-change");
     },
     // 选中实例
-    toggleSelection (rows) {
+    toggleSelection (rows, checked) {
       if (rows) {
         rows.forEach(row => {
-          this.$refs.table.toggleRowSelection(row);
+          this.$refs.table.toggleRowSelection(row, checked);
         });
       } else {
         this.$refs.table.clearSelection();
@@ -676,11 +740,12 @@ export default create({
       }
     },
     rowCellUpdate (row, index) {
-      row = this.deepClone(row);
-      const done = () => {
+      const done = (newRow) => {
+        row = newRow || row
         this.btnDisabledList[index] = false;
         this.btnDisabled = false;
-        this.list[index].$cellEdit = false
+        row.$cellEdit = false
+        this.list[index] = row;
         this.cascaderIndexList.splice(this.cascaderIndexList.indexOf(index), 1);
         delete this.cascaderFormList[index]
       }
@@ -847,15 +912,15 @@ export default create({
         } else if (type == 'column' && !this.isColumnSort) {
           return
         }
-      }
+      } else if (!el) return
       if (!window.Sortable) {
         packages.logs("Sortable")
         return
       }
-      window.Sortable.create(el, {
+      return window.Sortable.create(el, {
         ghostClass: config.ghostClass,
         chosenClass: config.ghostClass,
-        animation: 500,
+        animation: 100,
         delay: 0,
         onEnd: evt => callback(evt)
       })

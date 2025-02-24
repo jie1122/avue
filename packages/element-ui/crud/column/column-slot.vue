@@ -1,36 +1,36 @@
 <template>
-  <el-table-column v-if="getColumnProp(column,'hide')"
-                   :key="column.prop"
-                   :prop="column.prop"
-                   :label="column.label"
-                   :class-name="column.className"
-                   :label-class-name="column.labelClassName"
-                   :column-key="column.prop"
-                   filter-placement="bottom-end"
-                   :filters="getColumnProp(column,'filters')"
-                   :filter-method="getColumnProp(column,'filterMethod')?handleFilterMethod:undefined"
-                   :filter-multiple="validData(column.filterMultiple,true)"
-                   :show-overflow-tooltip="column.showOverflowTooltip || column.overHidden"
-                   :tooltip-effect="column.tooltipEffect"
-                   :tooltip-options="column.tooltipOptions"
-                   :min-width="column.minWidth"
-                   :sortable="getColumnProp(column,'sortable')"
-                   :sort-method="column.sortMethod"
-                   :sort-orders="column.sortOrders"
-                   :sort-by="column.sortBy"
-                   :resizable="column.resizable"
-                   :render-header="column.renderHeader"
-                   :align="column.align || crud.tableOption.align"
-                   :header-align="column.headerAlign || crud.tableOption.headerAlign"
-                   :width="getColumnProp(column,'width')"
-                   :fixed="getColumnProp(column,'fixed')">
+  <component :is="crud.tableColumnName"
+             v-if="getColumnProp(column,'hide')"
+             :key="column.prop"
+             :prop="column.prop"
+             :grid-row="column.gridRow"
+             :label="column.label"
+             :class-name="column.className"
+             :label-class-name="column.labelClassName"
+             :column-key="column.prop"
+             filter-placement="bottom-end"
+             :filters="getColumnProp(column,'filters')"
+             :filter-method="getColumnProp(column,'filterMethod')?handleFilterMethod:undefined"
+             :filter-multiple="validData(column.filterMultiple,true)"
+             :show-overflow-tooltip="column.showOverflowTooltip || column.overHidden"
+             :min-width="column.minWidth"
+             :sortable="getColumnProp(column,'sortable')"
+             :sort-method="column.sortMethod"
+             :sort-orders="column.sortOrders"
+             :sort-by="column.sortBy"
+             :resizable="column.resizable"
+             :render-header="column.renderHeader"
+             :align="column.align || crud.tableOption.align"
+             :header-align="column.headerAlign || crud.tableOption.headerAlign"
+             :width="getColumnProp(column,'width')"
+             :fixed="getColumnProp(column,'fixed')">
     <template #header="{$index}">
       <slot :name="crud.getSlotName(column,'H')"
             v-if="crud.getSlotName(column,'H',crud.$slots)"
             v-bind="{column,$index}"></slot>
       <span v-else>{{column.label}}</span>
     </template>
-    <template #="{row,$index}">
+    <template #="{row,column:tableColumn,$index}">
       <el-form-item :prop="crud.isTree?'':`list.${$index}.${column.prop}`"
                     :label="validLabel(column,row,' ')"
                     v-if="row.$cellEdit && column.cell"
@@ -42,11 +42,13 @@
           <div>
             <slot v-bind="{
                       row:row,
+                      tableColumn:tableColumn,
+                      column:column,
                       dic:crud.DIC[column.prop],
                       size:crud.size,
                       index:$index,
                       disabled:crud.btnDisabledList[$index],
-                      label:handleShowLabel(row,column,crud.DIC[column.prop]),
+                      label:handleDetail(row,column),
                       '$cell':row.$cellEdit
                     }"
                   :name="crud.getSlotName(column,'F')"
@@ -54,6 +56,9 @@
             <form-temp v-else
                        :column="column"
                        :size="crud.size"
+                       :index="$index"
+                       :row="row"
+                       :render="column.renderForm"
                        :table-data="{index:$index,row:row,label:handleDetail(row,column)}"
                        :dic="(crud.cascaderDIC[$index] || {})[column.prop] || crud.DIC[column.prop]"
                        :props="column.props || crud.tableOption.props"
@@ -73,11 +78,20 @@
           </div>
         </el-tooltip>
       </el-form-item>
+      <custom v-else-if="column.render"
+              :column="column"
+              :row="row"
+              :index="$index"
+              :render="column.render"
+              :event="column.event"
+              :params="column.params"></custom>
       <slot :row="row"
+            :tableColumn="tableColumn"
+            :column="column"
             :index="$index"
             :dic="crud.DIC[column.prop]"
             :size="crud.size"
-            :label="handleShowLabel(row,column,crud.DIC[column.prop])"
+            :label="handleDetail(row,column)"
             :name="column.prop"
             v-else-if="crud.$slots[column.prop]"></slot>
       <template v-else>
@@ -115,7 +129,7 @@
               v-text="handleDetail(row,column)"></span>
       </template>
     </template>
-  </el-table-column>
+  </component>
 </template>
 
 <script>
@@ -124,12 +138,16 @@ import { detail } from "core/detail";
 import { DIC_PROPS, DIC_SHOW_SPLIT, DIC_SPLIT } from 'global/variable'
 import { sendDic } from "core/dic";
 import { isMediaType, blankVal } from "utils/util";
+import custom from 'common/components/form/custom'
 import formTemp from 'common/components/form/index'
 import iconTemp from 'common/components/icon/index'
+import tableItemCard from '../grid/item'
 export default {
   name: 'column-slot',
   inject: ["dynamic", 'crud'],
   components: {
+    custom,
+    tableItemCard,
     formTemp,
     iconTemp
   },
@@ -155,14 +173,6 @@ export default {
       if (column.rules && row.$cellEdit) {
         return val
       }
-    },
-    handleShowLabel (row, column, DIC) {
-      let result = "";
-      if (!this.validatenull(DIC)) {
-        result = detail(row, column, this.crud.tableOption, DIC);
-        row["$" + column.prop] = result;
-      }
-      return result;
     },
     columnChange (row, column, index) {
       let key = `${index}-${column.prop}`
@@ -214,7 +224,7 @@ export default {
             column: columnNext,
             value: value,
             form: row
-          }).then(res => {
+          }, this).then(res => {
             const dic = res || [];
             //首次加载的放入队列记录
             if (!this.crud.cascaderIndexList.includes(rowIndex)) {
@@ -240,7 +250,7 @@ export default {
       let result;
       let DIC = column.parentProp ? (this.crud.cascaderDIC[row.$index] || {})[column.prop] : this.crud.DIC[column.prop]
       result = detail(row, column, this.crud.tableOption, DIC);
-      if (!this.validatenull(DIC)) {
+      if (!this.validatenull(DIC) && this.crud.tableOption.filterDic != true) {
         row["$" + column.prop] = result;
       }
       return result;

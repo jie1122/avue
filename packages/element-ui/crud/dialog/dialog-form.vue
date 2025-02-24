@@ -32,7 +32,12 @@
                @reset-change="hide"
                @tab-click="handleTabClick"
                @error="handleError"
-               v-bind="$uploadFun({},crud)"
+               v-bind="$uploadFun(null,crud)"
+               v-loading="loading"
+               :element-loading-text="crud.tableOption.loadingText"
+               :element-loading-spinner="crud.tableOption.loadingSpinner"
+               :element-loading-svg="crud.tableOption.loadingSvg"
+               :element-loading-background="crud.tableOption.loadingBackground"
                :option="option">
       <!-- 循环form表单卡槽 -->
       <template v-for="item in crud.formSlot"
@@ -43,21 +48,29 @@
     </avue-form>
     <span class="avue-dialog__footer"
           :class="'avue-dialog__footer--'+dialogMenuPosition">
+      <slot name="menu-form-before"
+            v-bind="menuParams()"></slot>
+      <el-button type="primary"
+                 @click="($refs.tableForm || {}).handleMock"
+                 :loading="disabled||loading"
+                 :size="crud.size"
+                 :icon="option.mockIcon"
+                 v-if="validData(option.mockBtn,false) && !isView">
+        {{option.mockText}}
+      </el-button>
       <el-button v-if="validData(option.submitBtn,true) && !isView"
                  @click="submit"
-                 :loading="disabled"
+                 :loading="disabled||loading"
                  :size="crud.size"
                  :icon="option.submitIcon"
                  type="primary">{{option.submitText}}</el-button>
       <el-button v-if="validData(option.emptyBtn,true) && !isView"
                  @click="reset"
-                 :disabled="disabled"
+                 :disabled="disabled||loading"
                  :size="crud.size"
                  :icon="option.emptyIcon">{{option.emptyText}}</el-button>
       <slot name="menu-form"
-            :disabled="disabled"
-            :size="crud.size"
-            :type="boxType"></slot>
+            v-bind="menuParams()"></slot>
     </span>
   </component>
 </template>
@@ -74,6 +87,7 @@ export default create({
   inject: ["crud"],
   data () {
     return {
+      loading: false,
       disabled: false,
       config: config,
       boxType: "",
@@ -129,6 +143,10 @@ export default create({
       let option = this.deepClone(this.crud.tableOption);
       option.boxType = this.boxType;
       option.column = this.deepClone(this.crud.propOption);
+      option.column.forEach(ele => {
+        delete ele.render
+        if (ele.renderForm) ele.render = ele.renderForm
+      })
       option.menuBtn = false;
       if (this.isAdd) {
         option.submitBtn = option.saveBtn;
@@ -141,6 +159,9 @@ export default create({
       } else if (this.isView) {
         option.detail = true;
       }
+      option.mockIcon = this.crud.getBtnIcon('mockBtn')
+      option.mockText = this.crud.menuIcon('mockBtn')
+
       option.emptyBtn = option.cancelBtn;
       option.emptyIcon = this.crud.getBtnIcon('cancelBtn')
       option.emptyText = this.crud.menuIcon('cancelBtn')
@@ -164,10 +185,17 @@ export default create({
       }
     },
     dialogMenuPosition () {
-      return this.crud.option.dialogMenuPosition || 'right'
+      return this.crud.tableOption.dialogMenuPosition || 'right'
     }
   },
   methods: {
+    menuParams () {
+      return {
+        disabled: this.disabled,
+        size: this.crud.size,
+        type: this.boxType
+      }
+    },
     submit () {
       this.$refs.tableForm.submit()
     },
@@ -270,15 +298,23 @@ export default create({
     // 显示表单
     show (type) {
       this.boxType = type;
-      const callback = () => {
+      const callback = (fn) => {
         this.fullscreen = this.crud.tableOption.dialogFullscreen
         this.boxVisible = true;
+        this.loading = false
         this.$nextTick(() => {
           this.initFun()
+          fn && fn()
         })
       };
+      const loading = () => {
+        callback(() => {
+          this.loading = true
+        });
+
+      }
       if (typeof this.crud.beforeOpen === "function") {
-        this.crud.beforeOpen(callback, this.boxType);
+        this.crud.beforeOpen(callback, this.boxType, loading);
       } else {
         callback();
       }

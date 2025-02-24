@@ -14,7 +14,9 @@
     </el-input>
     <div v-if="box">
       <el-dialog class="avue-dialog"
+                 :class="b()"
                  :width="dialogWidth"
+                 :before-close="beforeClose"
                  :append-to-body="$AVUE.appendToBody"
                  lock-scroll
                  :title="placeholder"
@@ -28,17 +30,18 @@
                    @on-load="onList"
                    @search-change="handleSearchChange"
                    @search-reset="handleSearchChange"
+                   @select-all="handleSelectionAllChange"
+                   @select="handleSelectionChange"
+                   :rowClassName="handleRowClassName"
                    @current-row-change="handleCurrentChange"
+                   v-model:search="search"
                    v-model:page="page"></avue-crud>
-        <template #footer>
-          <span class="dialog-footer">
-            <el-button type="primary"
-                       :size="size"
-                       icon="el-icon-check"
-                       @click="setVal">{{t("common.submitBtn")}}</el-button>
-          </span>
-        </template>
-
+        <span class="avue-dialog__footer">
+          <el-button type="primary"
+                     :size="size"
+                     icon="el-icon-check"
+                     @click="setVal">{{t("common.submitBtn")}}</el-button>
+        </span>
       </el-dialog>
     </div>
 
@@ -55,8 +58,9 @@ export default create({
   mixins: [props(), event(), locale],
   data () {
     return {
-      object: {},
-      active: {},
+      object: [],
+      active: [],
+      search: {},
       page: {},
       loading: false,
       box: false,
@@ -65,6 +69,7 @@ export default create({
     };
   },
   props: {
+    beforeClose: Function,
     prefixIcon: {
       type: String
     },
@@ -85,80 +90,138 @@ export default create({
     },
   },
   computed: {
+    isMultiple () {
+      return this.multiple
+    },
     title () {
       return (this.disabled || this.readonly) ? "查看" : '选择'
     },
     labelShow () {
       if (typeof this.formatter == 'function') {
-        return this.formatter(this.object)
+        return this.formatter(this.isMultiple ? this.object : (this.object[0] || {}))
       }
-      return this.object[this.labelKey] || ''
+      return this.object.map(ele => ele[this.labelKey]).join(',')
+
     },
     option () {
       return Object.assign({
         menu: false,
         header: false,
         size: this.size,
+        tip: false,
         headerAlign: 'center',
         align: 'center',
-        highlightCurrentRow: true,
+        highlightCurrentRow: !this.isMultiple,
+        reserveSelection: this.isMultiple,
+        selection: this.isMultiple,
+        selectable: (row, index) => {
+          return !row.disabled
+        },
       }, this.children)
     }
   },
   methods: {
+    handleSelectionAllChange (val) {
+      let ids = this.data.map(ele => ele[this.valueKey])
+      let list = val.filter(ele => ids.includes(ele[this.valueKey]))
+      this.data.forEach(row => {
+        let index = this.active.findIndex(ele => ele[this.valueKey] == row[this.valueKey]);
+        if (list.length == 0) {
+          if (index != -1) this.active.splice(index, 1)
+        } else {
+          if (index == -1) this.active.push(row)
+        }
+      })
+    },
+    handleSelectionChange (val, row) {
+      let checkbox = val.find(ele => ele[this.valueKey] == row[this.valueKey])
+      if (checkbox) {
+        this.active.push(row);
+      } else {
+        let index = this.active.findIndex(ele => ele[this.valueKey] == row[this.valueKey]);
+        if (index != -1) this.active.splice(index, 1)
+      }
+    },
     handleModelValue (val) {
       if (this.validatenull(val)) {
-        this.active = {}
-        this.object = {}
+        this.active = []
+        this.object = []
       }
     },
     handleTextValue (val) {
       if (this.created || this.validatenull(val)) return
       if (typeof this.onLoad == 'function') {
         this.onLoad({ value: this.text }, data => {
-          this.active = data
-          this.object = data
+          let result = Array.isArray(data) ? data : [data]
+          this.active = this.deepClone(result)
+          this.object = this.deepClone(result)
           this.created = true;
         })
       }
     },
     handleClear () {
-      this.active = {}
+      this.active = []
       this.setVal()
+      setTimeout(() => {
+        this.box = false;
+      }, 0)
     },
     handleShow () {
       this.$refs.main.blur();
       if (this.disabled || this.readonly) return;
+      this.search = {}
       this.page = {
         currentPage: 1,
         total: 0
       }
+      this.data = []
       this.box = true;
     },
     setVal () {
-      this.object = this.active
-      this.text = this.active[this.valueKey] || ''
+      this.object = this.deepClone(this.active)
+      this.text = this.active.map(ele => ele[this.valueKey])
       this.box = false
     },
+    handleRowClassName ({ row, rowIndex }) {
+      if (row[this.disabledKey]) return 'disabled'
+    },
     handleCurrentChange (val) {
-      this.active = val;
+      if (!val) return
+      if (this.isMultiple) {
+        this.$refs.crud.setCurrentRow(null)
+      } else {
+        if (val[this.disabledKey]) {
+          this.$refs.crud.setCurrentRow(this.active[0])
+        } else {
+          this.active = [val];
+        }
+      }
     },
     handleSearchChange (form, done) {
-      this.onLoad({ page: this.page, data: form }, data => {
-        this.page.total = data.total;
-        this.data = data.data;
+      this.loading = true;
+      this.page.currentPage = 1;
+      this.onList({}, () => {
+        done && done()
       })
-      done && done()
     },
-    onList (callback) {
+    onList (params, callback) {
       this.loading = true;
       if (typeof this.onLoad == 'function') {
-        this.onLoad({ page: this.page }, data => {
+        this.onLoad({ page: this.page, data: this.search }, data => {
+          callback && callback()
           this.page.total = data.total;
           this.data = data.data
           this.loading = false;
-          let active = this.data.find(ele => ele[this.valueKey] == this.object[this.valueKey])
-          setTimeout(() => this.$refs.crud.setCurrentRow(active))
+          if (this.isMultiple) {
+            let ids = this.object.map(ele => ele[this.valueKey])
+            let data = this.data.filter(ele => ids.includes(ele[this.valueKey]))
+            this.$nextTick(() => {
+              this.$refs.crud.toggleSelection(data, true);
+            })
+          } else {
+            let active = this.data.find(ele => ele[this.valueKey] == this.text)
+            setTimeout(() => this.$refs.crud.setCurrentRow(active))
+          }
         })
       }
     }

@@ -15,3 +15,6 @@ package-lock.json
 *.ntvs*
 *.njsproj
 *.sln
+lib/avue.js
+lib/avue.min.js
+lib/index.css

@@ -17,6 +17,7 @@
     <div v-if="box">
       <el-dialog class="avue-dialog"
                  :width="dialogWidth"
+                 :before-close="beforeClose"
                  :append-to-body="$AVUE.appendToBody"
                  lock-scroll
                  :title="placeholder"
@@ -40,15 +41,13 @@
                  :class="b('content-result')"></div>
           </div>
         </div>
-        <template #footer>
-          <span class="dialog-footer">
-            <el-button type="primary"
-                       :size="size"
-                       icon="el-icon-check"
-                       v-if="!(disabled || readonly)"
-                       @click="handleSubmit">{{t("common.submitBtn")}}</el-button>
-          </span>
-        </template>
+        <span class="avue-dialog__footer">
+          <el-button type="primary"
+                     :size="size"
+                     icon="el-icon-check"
+                     v-if="!(disabled || readonly)"
+                     @click="handleSubmit">{{t("common.submitBtn")}}</el-button>
+        </span>
 
       </el-dialog>
     </div>
@@ -65,6 +64,8 @@ export default create({
   name: "input-map",
   mixins: [props(), event(), locale],
   props: {
+    beforeClose: Function,
+    mapChange: Function,
     prefixIcon: {
       type: String
     },
@@ -167,6 +168,9 @@ export default create({
       this.text = [];
       this.poi = {};
       this.handleChange(this.text)
+      setTimeout(() => {
+        this.box = false;
+      }, 0)
     },
     setVal () {
       this.text = [this.poi.longitude, this.poi.latitude, this.poi.formattedAddress]
@@ -193,33 +197,32 @@ export default create({
     },
     //获取坐标
     getAddress (R, P) {
-      new window.AMap.service("AMap.Geocoder", () => {
-        //回调函数
-        let geocoder = new window.AMap.Geocoder({});
-        geocoder.getAddress([R, P], (status, result) => {
-          if (status === "complete" && result.info === "OK") {
-            const regeocode = result.regeocode;
-            this.poi = Object.assign(regeocode, {
-              longitude: R,
-              latitude: P
-            });
-            // 自定义点标记内容
-            var markerContent = document.createElement("div");
+      //回调函数
+      let geocoder = new window.AMap.Geocoder({});
+      geocoder.getAddress([R, P], (status, result) => {
+        if (status === "complete" && result.info === "OK") {
+          this.mapChange && this.mapChange(result)
+          const regeocode = result.regeocode;
+          this.poi = Object.assign(regeocode, {
+            longitude: R,
+            latitude: P
+          });
+          // 自定义点标记内容
+          var markerContent = document.createElement("div");
+          // 点标记中的图标
+          var markerImg = document.createElement("img");
+          markerImg.style.width = "25px"
+          markerImg.src =
+            "//a.amap.com/jsapi_demos/static/demo-center/icons/poi-marker-default.png";
+          markerContent.appendChild(markerImg);
 
-            // 点标记中的图标
-            var markerImg = document.createElement("img");
-            markerImg.src =
-              "//a.amap.com/jsapi_demos/static/demo-center/icons/poi-marker-default.png";
-            markerContent.appendChild(markerImg);
-
-            // 点标记中的文本
-            var markerSpan = document.createElement("span");
-            markerSpan.className = "avue-input-map__marker";
-            markerSpan.innerHTML = this.poi.formattedAddress;
-            markerContent.appendChild(markerSpan);
-            this.marker.setContent(markerContent); //更新点标记内容
-          }
-        });
+          // 点标记中的文本
+          var markerSpan = document.createElement("span");
+          markerSpan.className = "avue-input-map__marker";
+          markerSpan.innerHTML = this.poi.formattedAddress;
+          markerContent.appendChild(markerSpan);
+          this.marker.setContent(markerContent); //更新点标记内容
+        }
       });
     },
     handleClose () {
@@ -229,8 +232,8 @@ export default create({
       this.map.on("click", e => {
         if (this.disabled || this.readonly) return
         const lnglat = e.lnglat;
-        const P = lnglat.P || lnglat.Q;
-        const R = lnglat.R;
+        const P = lnglat.lat;
+        const R = lnglat.lng;
         this.addMarker(R, P);
         this.getAddress(R, P);
       });
@@ -277,8 +280,8 @@ export default create({
           poi = poiResult.item;
         this.poi = Object.assign(poi, {
           formattedAddress: poi.name,
-          longitude: poi.location.R,
-          latitude: poi.location.P || poi.location.Q
+          longitude: poi.location.lng,
+          latitude: poi.location.lat
         });
         if (source !== "search") {
           poiPicker.searchByKeyword(poi.name);

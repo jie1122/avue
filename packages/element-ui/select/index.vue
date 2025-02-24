@@ -4,9 +4,11 @@
              :class="b()"
              v-model="text"
              :size="size"
-             :options="options"
+             :options="netDic"
+             :props="props"
              :loading="loading"
              :loading-text="loadingText"
+             :value-on-clear="valueOnClear"
              :multiple="multiple"
              :filterable="remote?true:filterable"
              :remote="remote"
@@ -28,60 +30,76 @@
              :allow-create="allowCreate"
              :default-first-option="defaultFirstOption"
              :disabled="disabled">
-    <template v-if="!virtualize">
-      <template v-if="isGroup">
-        <el-option-group v-for="(item,index) in netDic"
-                         :key="index"
-                         :label="getLabelText(item)">
-          <el-option v-for="(citem,cindex) in item[groupsKey]"
-                     :key="cindex"
-                     :disabled="citem[disabledKey]"
-                     :label="getLabelText(citem)"
-                     :value="citem[valueKey]">
+    <template #="{item}">
+      <template v-if="virtualize">
+        <slot :label="labelKey"
+              :value="valueKey"
+              :item="item"
+              v-if="$slots.default">
+        </slot>
+        <template v-else>
+          <span>{{ getLabelText(item) }}</span>
+          <span v-if="item[descKey]"
+                :class="b('desc')">{{ item[descKey] }}</span>
+        </template>
+      </template>
+      <template v-else>
+        <template v-if="isGroup">
+          <el-option-group v-for="(item,index) in netDic"
+                           :key="index"
+                           :label="getLabelText(item)">
+            <el-option v-for="(citem,cindex) in item[groupsKey]"
+                       :key="citem[valueKey]"
+                       :class="citem[classNameKey]"
+                       :disabled="citem[disabledKey]"
+                       :label="getLabelText(citem)"
+                       :value="citem[valueKey]">
+              <template #>
+                <slot :label="labelKey"
+                      :value="valueKey"
+                      :item="citem"
+                      v-if="$slots.default">
+                </slot>
+                <template v-else>
+                  <span>{{ getLabelText(citem) }}</span>
+                  <span v-if="citem[descKey]"
+                        :class="b('desc')">{{ citem[descKey] }}</span>
+                </template>
+              </template>
+            </el-option>
+          </el-option-group>
+        </template>
+        <template v-else>
+          <div :class="b('check')">
+            <el-checkbox v-if="all&&multiple"
+                         :value="checked"
+                         :checked="checked"
+                         :disabled="disabled"
+                         :indeterminate="indeterminate"
+                         @change='checkChange'>全选</el-checkbox>
+          </div>
+
+          <el-option v-for="(item,index) in netDic"
+                     :key="item[valueKey]"
+                     :class="item[classNameKey]"
+                     :disabled="item[disabledKey]"
+                     :label="getLabelText(item) "
+                     :value="item[valueKey]">
+
             <template #>
               <slot :label="labelKey"
                     :value="valueKey"
-                    :item="citem"
+                    :item="item"
                     v-if="$slots.default">
               </slot>
               <template v-else>
-                <span>{{ getLabelText(citem) }}</span>
-                <span v-if="citem[descKey]"
-                      :class="b('desc')">{{ citem[descKey] }}</span>
+                <span>{{ getLabelText(item) }}</span>
+                <span v-if="item[descKey]"
+                      :class="b('desc')">{{ item[descKey] }}</span>
               </template>
             </template>
           </el-option>
-        </el-option-group>
-      </template>
-      <template v-else>
-        <div :class="b('check')">
-          <el-checkbox v-if="all&&multiple"
-                       :value="checked"
-                       :checked="checked"
-                       :disabled="disabled"
-                       :indeterminate="indeterminate"
-                       @change='checkChange'>全选</el-checkbox>
-        </div>
-
-        <el-option v-for="(item,index) in netDic"
-                   :key="index"
-                   :disabled="item[disabledKey]"
-                   :label="getLabelText(item) "
-                   :value="item[valueKey]">
-
-          <template #>
-            <slot :label="labelKey"
-                  :value="valueKey"
-                  :item="item"
-                  v-if="$slots.default">
-            </slot>
-            <template v-else>
-              <span>{{ getLabelText(item) }}</span>
-              <span v-if="item[descKey]"
-                    :class="b('desc')">{{ item[descKey] }}</span>
-            </template>
-          </template>
-        </el-option>
+        </template>
       </template>
     </template>
 
@@ -109,6 +127,10 @@ export default create({
   },
   props: {
     virtualize: Boolean,
+    valueOnClear: {
+      type: [String, Number, Boolean, Function],
+      default: undefined,
+    },
     loadingText: {
       type: String,
     },
@@ -167,15 +189,8 @@ export default create({
     }
   },
   computed: {
-    options () {
-      let dicData = this.deepClone(this.netDic)
-      return dicData.map(ele => {
-        return Object.assign(ele, {
-          label: ele[this.labelKey],
-          value: ele[this.valueKey],
-          disabled: ele[this.disabledKey]
-        })
-      })
+    classNameKey () {
+      return this.props.className || 'className'
     },
     componentName () {
       return 'elSelect' + (this.virtualize ? 'V2' : '')
@@ -212,7 +227,7 @@ export default create({
         packages.logs('Sortable');
         return
       }
-      const el = this.$refs.main.$el.querySelectorAll('.el-select__tags > span')[0]
+      const el = this.$refs.main.$el.querySelectorAll('.el-select__selection')[0]
       this.sortable = window.Sortable.create(el, {
         animation: 100,
         onEnd: evt => {
@@ -226,7 +241,7 @@ export default create({
       sendDic({
         column: this.column,
         value: query,
-      }).then(res => {
+      }, this).then(res => {
         this.loading = false;
         this.netDic = res;
       });
@@ -236,7 +251,7 @@ export default create({
       this.checked = val
       this.indeterminate = false
       if (val) {
-        this.text = this.netDic.map(ele => ele[this.valueKey])
+        this.text = this.netDic.filter(ele => !ele[this.disabledKey]).map(ele => ele[this.valueKey])
       }
     }
   }

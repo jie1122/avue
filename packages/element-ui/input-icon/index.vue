@@ -3,10 +3,11 @@
     <el-input :prefix-icon="prefixIcon"
               :suffix-icon="suffixIcon"
               :placeholder="placeholder"
-              :model-value="text"
+              v-model="text"
               :popper-class="popperClass"
               :size="size"
               ref="main"
+              @clear="handleClear"
               :clearable="disabled?false:clearable"
               :disabled="disabled"
               @click="handleClick"
@@ -22,6 +23,7 @@
     <div v-if="box">
       <el-dialog class="avue-dialog"
                  :title="placeholder"
+                 :before-close="beforeClose"
                  :append-to-body="$AVUE.appendToBody"
                  lock-scroll
                  v-model="box"
@@ -64,6 +66,7 @@ export default create({
   },
   mixins: [props(), event(), locale],
   props: {
+    beforeClose: Function,
     prefixIcon: {
       type: String
     },
@@ -114,6 +117,11 @@ export default create({
     this.tabs = this.iconList[0]
   },
   methods: {
+    handleClear () {
+      setTimeout(() => {
+        this.box = false;
+      }, 0)
+    },
     handleTabs (tabs) {
       this.tabs = tabs;
     },
