@@ -41,8 +41,9 @@
                      circle></el-button>
           <avue-form :key="index"
                      ref="main"
+                     :table-data="{row:text[index],index}"
                      :option="option"
-                     v-bind="$uploadFun({},this)"
+                     v-bind="$uploadFun(null,this)"
                      v-model="text[index]">
             <template #_index="{}">
               <span>{{item.$index+1}}</span>
@@ -62,13 +63,13 @@
                ref="main"
                :option="option"
                :disabled="disabled"
-               v-bind="$uploadFun({},this)"
+               v-bind="$uploadFun(null,this)"
                @cell-mouse-enter="cellMouseenter"
                @cell-mouse-leave="cellMouseLeave"
                @selection-change="handleSelectionChange"
                @sortable-change="handleSortableChange"
                :data="text">
-      <template #_index-header="scope">
+      <template #_index-header="{}">
         <el-button v-if="!(addBtn || readonly) && maxFlag"
                    @click="addRow()"
                    type="primary"
@@ -86,6 +87,11 @@
                    icon="el-icon-delete"
                    circle></el-button>
         <div v-else>{{scope.row.$index+1}}</div>
+      </template>
+      <template v-for="item in columnSlot"
+                #[getSlotName({prop:item},`F`)]="scope">
+        <slot v-bind="scope"
+              :name="item"></slot>
       </template>
 
     </avue-crud>
@@ -121,6 +127,7 @@ export default create({
     }
   },
   props: {
+    uploadSized: Function,
     uploadBefore: Function,
     uploadAfter: Function,
     uploadDelete: Function,
@@ -216,7 +223,8 @@ export default create({
       return getColumn(this.children.column)
     },
     option () {
-      return Object.assign({
+      // 默认选项
+      let options = {
         boxType: this.boxType,
         border: true,
         header: false,
@@ -224,36 +232,50 @@ export default create({
         size: this.size,
         disabled: this.disabled,
         readonly: this.readonly,
-        emptyBtn: false,
-        submitBtn: false,
-      }, (() => {
-        let option = this.deepClone(this.children)
-        delete option.column;
-        return option;
-      })(), (() => {
-        let list = [{
-          label: this.children.indexLabel || '#',
-          prop: '_index',
-          display: this.showIndex,
-          hide: !this.showIndex,
-          fixed: true,
-          align: 'center',
-          headerAlign: 'center',
-          span: 24,
-          width: 60
-        }];
-        this.columnOption.forEach(ele => {
-          list.push(Object.assign(ele, {
-            hide: this.validData(ele.hide, !this.validParams(ele, 'display', true)),
-            disabled: this.validParams(ele, 'disabled', false),
-            detail: this.validParams(ele, 'detail', false),
-            cell: this.validData(ele.cell, this.isCrud)
-          }))
+        menuBtn: false,
+      };
+
+      // 处理子选项
+      let childOptions = this.deepClone(this.children);
+      delete childOptions.column;
+
+      let columnOption = this.deepClone(this.columnOption);
+      const callback = (list) => {
+        list.forEach((ele, index) => {
+          if (ele.children && Array.isArray(ele.children)) callback(ele.children)
+          else {
+            list[index] = {
+              ...ele,
+              ...{
+                hide: this.validData(ele.hide, !this.validParams(ele, 'display', true)),
+                disabled: this.validParams(ele, 'disabled', false),
+                detail: this.validParams(ele, 'detail', false),
+                cell: this.validData(ele.cell, this.isCrud)
+              }
+            }
+          }
         })
-        return {
-          column: list
-        }
-      })())
+      }
+      callback(columnOption)
+      // 处理列选项
+      columnOption.unshift({
+        label: this.children.indexLabel || '#',
+        prop: '_index',
+        display: this.showIndex,
+        hide: !this.showIndex,
+        fixed: true,
+        align: 'center',
+        headerAlign: 'center',
+        span: 24,
+        width: 60
+      })
+
+      // 返回合并后的选项对象
+      return {
+        ...options,
+        ...{ column: columnOption },
+        ...childOptions
+      };
     }
   },
   mounted () {

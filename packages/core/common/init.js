@@ -1,11 +1,24 @@
-import { sendDic, loadDic, loadCascaderDic, loadLocalDic } from 'core/dic';
-import { DIC_PROPS } from 'global/variable';
+import {
+  sendDic,
+  loadDic,
+  loadCascaderDic,
+  loadLocalDic
+} from 'core/dic';
+import {
+  DIC_PROPS
+} from 'global/variable';
 import slot from 'core/slot'
-export default function () {
+export default function (name) {
   return {
     mixins: [slot],
     emits: ['update:modelValue', 'update:defaults', 'change'],
     props: {
+      tableData: {
+        type: Object,
+        default: () => {
+          return {}
+        }
+      },
       defaults: {
         type: Object,
         default () {
@@ -84,7 +97,12 @@ export default function () {
     },
     methods: {
       init (type) {
-        this.tableOption = this.deepClone(this.option);
+        let globOption = this.deepClone(this.$AVUE[`${name}Option`])
+        let option = {
+          ...globOption,
+          ...this.option
+        }
+        this.tableOption = this.deepClone(option);
         this.handleLocalDic();
         if (type !== false) this.handleLoadDic()
       },
@@ -102,7 +120,7 @@ export default function () {
         } else if (this.validatenull(list) && !this.validatenull(column.dicUrl)) {
           sendDic({
             column: column
-          }).then(list => {
+          }, this).then(list => {
             this.DIC[prop] = list;
           });
         } else {

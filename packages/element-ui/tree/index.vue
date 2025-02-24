@@ -7,7 +7,10 @@
                 v-model="filterValue">
         <template #append
                   v-if="validData(option.addBtn,true)">
-          <el-button :size="size"
+          <slot v-if="$slots['add-btn']"
+                name="add-btn"></slot>
+          <el-button v-else
+                     :size="size"
                      @click="parentAdd"
                      v-permission="getPermission('addBtn')"
                      icon="el-icon-plus"></el-button>
@@ -35,6 +38,7 @@
                  :expand-on-click-node="expandOnClickNode"
                  @check-change="handleCheckChange"
                  @node-click="nodeClick"
+                 @node-expand="nodeExpand"
                  @node-drag-start="handleDragStart"
                  @node-drag-enter="handleDragEnter"
                  @node-drag-leave="handleDragLeave"
@@ -241,6 +245,7 @@ export default create({
       return Object.assign(
         this.option.formOption || {},
         {
+          boxType: this.type,
           submitText: this.addText,
         }
       );
@@ -304,11 +309,12 @@ export default create({
         this[ele] = this.$refs.tree[ele];
       })
     },
-    nodeContextmenu (e, data, node) {
+    nodeContextmenu (e, data, node, obj) {
       this.node = node;
       this.client.x = e.clientX;
       this.client.y = e.clientY;
       this.client.show = true;
+      this.$emit('node-contextmenu', data, node, obj)
     },
     handleCheckChange (data, checked, indeterminate) {
       this.$emit('check-change', data, checked, indeterminate)
@@ -319,6 +325,9 @@ export default create({
     nodeClick (data, node, nodeComp) {
       this.client.show = false
       this.$emit("node-click", data, node, nodeComp);
+    },
+    nodeExpand (data, node, nodeComp) {
+      this.$emit("node-expand", data, node, nodeComp);
     },
     filterNode (value, data) {
       if (typeof this.filterNodeMethod === 'function') {

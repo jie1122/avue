@@ -2,7 +2,7 @@
   <el-drawer v-if="columnBox"
              :append-to-body="$AVUE.appendToBody"
              lock-scroll
-             :custom-class="['avue-dialog',b('column')].join(' ')"
+             :class="['avue-dialog',b('column')].join(' ')"
              :title="t('crud.showTitle')"
              :size="crud.isMobile?'100%':'40%'"
              v-model="columnBox">
@@ -82,7 +82,9 @@ export default create({
       this.$nextTick(() => this.rowDrop())
     },
     handleChange (prop) {
-      if (['hide', 'filters'].includes(prop)) {
+      if (prop === 'hide') {
+        this.crud.doLayout()
+      } else if (prop === 'filters') {
         this.crud.refreshTable()
       }
     },
@@ -92,7 +94,6 @@ export default create({
         const oldIndex = evt.oldIndex;
         const newIndex = evt.newIndex;
         this.crud.headerSort(oldIndex, newIndex)
-        this.crud.refreshTable(() => this.rowDrop())
       })
     },
   }

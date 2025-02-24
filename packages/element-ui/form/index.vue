@@ -54,11 +54,12 @@
             </el-tabs>
           </template>
           <template #header
-                    :column="item"
                     v-if="getSlotName(item,'H',$slots)">
-            <slot :name="getSlotName(item,'H')"></slot>
+            <slot :name="getSlotName(item,'H')"
+                  :column="item"></slot>
           </template>
           <div :class="b('group',{'flex':validData(item.flex,true)})"
+               v-if="isGroupShow(item,index,isVerifyAll)"
                v-show="isGroupShow(item,index)">
             <template v-for="(column,cindex) in item.column">
               <el-col v-if="vaildDisplay(column)"
@@ -134,6 +135,9 @@
                                  :dic="DIC[column.prop]"
                                  :props="tableOption.props"
                                  :propsHttp="tableOption.propsHttp"
+                                 :render="column.render"
+                                 :row="form"
+                                 :table-data="tableData"
                                  :readonly="column.readonly || readonly"
                                  v-bind="$uploadFun(column)"
                                  :disabled="getDisabled(column)"
@@ -164,6 +168,10 @@
                    :style="{width:(column.count/24*100)+'%'}"></div>
             </template>
             <form-menu v-if="!isMenu">
+              <template #menu-form-before="scope">
+                <slot name="menu-form-before"
+                      v-bind="scope"></slot>
+              </template>
               <template #menu-form="scope">
                 <slot name="menu-form"
                       v-bind="scope"></slot>
@@ -197,7 +205,7 @@ import mock from "utils/mock";
 import config from "./config.js";
 export default create({
   name: "form",
-  mixins: [init()],
+  mixins: [init('form')],
   emits: [
     'update:modelValue',
     'update:status',
@@ -284,7 +292,7 @@ export default create({
       return this.detail === true
     },
     isAdd () {
-      return this.boxType === "add"
+      return ['parentAdd', 'add'].includes(this.boxType)
     },
     isTabs () {
       return this.tableOption.tabs === true;
@@ -329,35 +337,41 @@ export default create({
       return list;
     },
     columnOption () {
+      const detail = (list) => {
+        list.forEach((ele, index) => {
+          ele.column = getColumn(ele.column) || []
+          // 循环列的全部属性
+          ele.column.forEach((column, cindex) => {
+            //动态计算列的位置，如果为隐藏状态则或则手机状态不计算
+            if (column.display !== false && !this.isMobile) {
+              column = calcCount(column, this.config.span, cindex === 0);
+            }
+          });
+          //处理级联属性
+          ele.column = calcCascader(ele.column);
+          //根据order排序
+          ele.column = ele.column.sort((a, b) => (b.order || 0) - (a.order || 0))
+        });
+      }
       let tableOption = this.tableOption
       let column = getColumn(tableOption.column)
       let group = tableOption.group || [];
       let footer = tableOption.footer || [];
-      group.unshift({
+      let firstGroup = [], footerGroup = []
+      firstGroup = [{
         header: false,
         column: column
-      })
+      }]
+      detail(firstGroup)
+      detail(group)
       if (footer.length !== 0) {
-        group.push({
+        footerGroup = [{
           header: false,
           column: footer
-        })
+        }]
+        detail(footerGroup)
       }
-      group.forEach((ele, index) => {
-        ele.column = getColumn(ele.column) || []
-        // 循环列的全部属性
-        ele.column.forEach((column, cindex) => {
-          //动态计算列的位置，如果为隐藏状态则或则手机状态不计算
-          if (column.display !== false && !this.isMobile) {
-            column = calcCount(column, this.config.span, cindex === 0);
-          }
-        });
-        //处理级联属性
-        ele.column = calcCascader(ele.column);
-        //根据order排序
-        ele.column = ele.column.sort((a, b) => (b.order || 0) - (a.order || 0))
-      });
-      return group;
+      return firstGroup.concat(group).concat(footerGroup)
     },
     menuPosition: function () {
       if (this.tableOption.menuPosition) {
@@ -378,11 +392,15 @@ export default create({
     isMock () {
       return this.validData(this.tableOption.mockBtn, false);
     },
+    isVerifyAll () {
+      return this.validData(this.tableOption.tabsVerifyAll, true);
+    },
     menuSpan () {
       return this.tableOption.menuSpan || 24;
     }
   },
   props: {
+    uploadSized: Function,
     uploadBefore: Function,
     uploadAfter: Function,
     uploadDelete: Function,
@@ -412,8 +430,9 @@ export default create({
     getDisabled (column) {
       return this.vaildDetail(column) || this.isDetail || this.vaildDisabled(column) || this.allDisabled
     },
-    isGroupShow (item, index) {
-      if (this.isTabs) {
+    isGroupShow (item, index, verifyAll) {
+      if (verifyAll) return true
+      else if (this.isTabs) {
         return index == this.activeName || index == 0
       } else {
         return true;
@@ -450,10 +469,10 @@ export default create({
           let bindList = [];
           if (bind) {
             let formProp = this.$watch('form.' + prop, (n, o) => {
-              if (n != o) setAsVal(this.form, bind, n);
+              setAsVal(this.form, bind, n);
             })
             let formDeep = this.$watch('form.' + bind, (n, o) => {
-              if (n != o) this.form[prop] = n
+              this.form[prop] = n
             })
             bindList.push(formProp)
             bindList.push(formDeep)
@@ -461,12 +480,22 @@ export default create({
           }
           if (control) {
             const callback = () => {
-              let controlList = control(this.form[column.prop], this.form) || {};
-              Object.keys(controlList).forEach(item => {
-                let ele = Object.assign(this.objectOption[item] || {}, controlList[item])
-                this.objectOption[item] = ele;
-                if (controlList[item].dicData) this.DIC[item] = controlList[item].dicData
-              })
+              const controlResolve = (list) => {
+                Object.keys(list).forEach(item => {
+                  let ele = Object.assign(this.objectOption[item] || {}, list[item])
+                  this.objectOption[item] = ele;
+                  if (list[item].dicData) this.DIC[item] = list[item].dicData
+                })
+              }
+              let result = this.form['$' + column.prop] || this.form[column.prop]
+              let controlList = control(this.form[column.prop], this.form, result, column) || {};
+              if (controlList instanceof Promise) {
+                controlList.then(res => {
+                  controlResolve(res)
+                })
+              } else {
+                controlResolve(controlList)
+              }
             }
             let formControl = this.$watch('form.' + prop, (n, o) => {
               callback()
@@ -526,8 +555,8 @@ export default create({
       return isPx ? this.setPx(result) : result
     },
     //对部分表单字段进行校验的方法
-    validateField (val) {
-      return this.$refs.form.validateField(val);
+    validateField (val, fn) {
+      return this.$refs.form.validateField(val, fn);
     },
     scrollToField (val) {
       return this.$refs.form.scrollToField(val);
@@ -572,7 +601,7 @@ export default create({
             column: columnNext,
             value: value,
             form: this.form
-          }).then(res => {
+          }, this).then(res => {
             //首次加载的放入队列记录
             if (!this.formList.includes(str)) this.formList.push(str);
             // 修改字典
@@ -696,7 +725,7 @@ export default create({
           let result = Object.assign(dynamicError, msg);
           if (this.validatenull(result)) {
             this.show();
-            callback && callback(true, this.hide)
+            callback && callback(true, this.hide, result)
           } else {
             callback && callback(false, this.hide, result)
           }
@@ -724,7 +753,7 @@ export default create({
       this.allDisabled = false;
     },
     submit () {
-      this.validate((valid, msg) => {
+      this.validate((valid, hide, msg) => {
         if (valid) {
           this.$emit("submit", filterParams(this.form, ['$']), this.hide);
         } else {

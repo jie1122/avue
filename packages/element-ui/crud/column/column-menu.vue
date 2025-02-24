@@ -1,14 +1,15 @@
 <template>
   <!-- 操作栏 -->
-  <el-table-column prop="menu"
-                   :class-name="crud.tableOption.menuClassName"
-                   :label-class-name="crud.tableOption.menuLabelClassName"
-                   :fixed="validData(crud.tableOption.menuFixed,config.menuFixed)"
-                   v-if="validData(crud.tableOption.menu,config.menu)&&crud.getPermission('menu')"
-                   :label="crud.tableOption.menuTitle || t('crud.menu')"
-                   :align="crud.tableOption.menuAlign || config.menuAlign"
-                   :header-align="crud.tableOption.menuHeaderAlign || config.menuHeaderAlign"
-                   :width="crud.isMobile?(crud.tableOption.menuXsWidth || config.menuXsWidth):( crud.tableOption.menuWidth || config.menuWidth)">
+  <component :is="crud.tableColumnName"
+             prop="menu"
+             :class-name="crud.tableOption.menuClassName"
+             :label-class-name="crud.tableOption.menuLabelClassName"
+             :fixed="validData(crud.tableOption.menuFixed,config.menuFixed)"
+             v-if="validData(crud.tableOption.menu,config.menu)&&crud.getPermission('menu')"
+             :label="crud.tableOption.menuTitle || t('crud.menu')"
+             :align="crud.tableOption.menuAlign || config.menuAlign"
+             :header-align="crud.tableOption.menuHeaderAlign || config.menuHeaderAlign"
+             :width="crud.isMobile?(crud.tableOption.menuXsWidth || config.menuXsWidth):( crud.tableOption.menuWidth || config.menuWidth)">
     <template #header="scope">
       <slot name="menu-header"
             v-bind="scope"
@@ -16,8 +17,10 @@
             v-if="crud.getSlotName({prop:'menu'},'H',crud.$slots)"></slot>
       <span v-else>{{crud.tableOption.menuTitle || t('crud.menu')}}</span>
     </template>
-    <template #="{row,$index}">
+    <template #="{row,column,$index}">
       <div :class="b('menu')">
+        <slot name="menu-before"
+              v-bind="menuParams({row,column,$index})"></slot>
         <el-dropdown v-if="isMenu"
                      :size="crud.size">
           <el-button text
@@ -29,6 +32,8 @@
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
+              <slot name="menu-btn-before"
+                    v-bind="menuParams({row,column,$index})"></slot>
               <el-dropdown-item :icon="crud.getBtnIcon('viewBtn')"
                                 :class="b('viewBtn')"
                                 v-if="validData(crud.tableOption.viewBtn,config.viewBtn)"
@@ -49,12 +54,8 @@
                                 v-if="validData(crud.tableOption.delBtn,config.delBtn)"
                                 v-permission="crud.getPermission('delBtn',row,$index)"
                                 @click="crud.rowDel(row,$index)">{{crud.menuIcon('delBtn')}}</el-dropdown-item>
-              <slot name="menuBtn"
-                    :row="row"
-                    :type="menuText('primary')"
-                    :disabled="crud.btnDisabled"
-                    :size="crud.size"
-                    :index="$index"></slot>
+              <slot name="menu-btn"
+                    v-bind="menuParams({row,column,$index})"></slot>
             </el-dropdown-menu>
           </template>
 
@@ -93,8 +94,9 @@
                        :icon="crud.getBtnIcon('cancelBtn')"
                        :size="crud.size"
                        :disabled="crud.btnDisabledList[$index]"
+                       v-permission="crud.getPermission('cancelBtn',row,$index)"
                        @click.stop="crud.rowCancel(row,$index)"
-                       v-if="row.$cellEdit">
+                       v-if="row.$cellEdit&&validData(crud.tableOption.cancelBtn,config.cancelBtn)">
               <template v-if="!isIconMenu">
                 {{crud.menuIcon('cancelBtn')}}
               </template>
@@ -155,14 +157,10 @@
 
         </template>
         <slot name="menu"
-              :row="row"
-              :type="menuText('primary')"
-              :disabled="crud.btnDisabled"
-              :size="crud.size"
-              :index="$index"></slot>
+              v-bind="menuParams({row,column,$index})"></slot>
       </div>
     </template>
-  </el-table-column>
+  </component>
 </template>
 
 <script>
@@ -170,12 +168,16 @@ import create from "core/create";
 import locale from "core/locale";
 import permission from 'common/directive/permission';
 import config from "../config.js";
+import tableItemCard from '../grid/item'
 export default create({
   name: "crud",
   data () {
     return {
       config: config,
     }
+  },
+  components: {
+    tableItemCard
   },
   mixins: [locale],
   inject: ["crud"],
@@ -200,6 +202,17 @@ export default create({
     menuText (value) {
       return value;
     },
+    menuParams ({ row, column, $index }) {
+      let parent = this.crud
+      return {
+        row,
+        column,
+        type: this.menuText('primary'),
+        disabled: parent.btnDisabled,
+        size: parent.size,
+        index: $index
+      }
+    }
   }
 })
 </script>

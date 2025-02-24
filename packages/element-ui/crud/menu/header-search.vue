@@ -21,11 +21,11 @@
         <template v-if="isSearchIcon">
           <el-button text
                      v-if="show===false"
-                     @click="show=true"
+                     @click="handleSearchIconShow"
                      icon="el-icon-arrow-down">{{t('crud.open')}}</el-button>
           <el-button text
                      v-if="show===true"
-                     @click="show=false"
+                     @click="handleSearchIconShow"
                      icon="el-icon-arrow-up">{{t('crud.shrink')}}</el-button>
         </template>
 
@@ -65,6 +65,9 @@ export default create({
       },
       immediate: true
     },
+    show () {
+      this.crud.getTableHeight()
+    },
     searchShow () {
       this.crud.getTableHeight()
     }
@@ -85,10 +88,10 @@ export default create({
       return !this.validatenull(this.crud.tableOption.group);
     },
     isSearchIcon () {
-      return this.validData(this.crud.option.searchIcon, this.$AVUE.searchIcon) === true && this.columnLen > this.searchIndex
+      return this.validData(this.crud.tableOption.searchIcon, this.$AVUE.searchIcon) === true && this.columnLen > this.searchIndex
     },
     searchIndex () {
-      return this.crud.option.searchIndex || 2
+      return this.crud.tableOption.searchIndex || 2
     },
     columnLen () {
       let count = 0;
@@ -98,7 +101,7 @@ export default create({
       return count
     },
     option () {
-      const option = this.crud.option;
+      const option = this.crud.tableOption;
       const detailColumn = (list = []) => {
         list = this.deepClone(list);
         let column = [];
@@ -129,11 +132,13 @@ export default create({
               size: ele.searchSize || option.searchSize,
               value: ele.searchValue,
               rules: ele.searchRules,
+              render: ele.renderSearch,
               row: ele.searchRow,
+              bind: ele.searchBin,
+              disabled: ele.searchDisabled,
+              readonly: ele.searchReadonly,
               display: this.isSearchIcon ? (this.show ? true : isCount) : true,
             })
-            let whiteList = ['bind', 'disabled', 'readonly']
-            whiteList.forEach(key => delete ele[key])
             column.push(ele);
             count = count + 1;
           }
@@ -167,9 +172,9 @@ export default create({
           emptyIcon: this.crud.getBtnIcon('emptyBtn'),
           menuSpan: (() => {
             if (this.show || !this.isSearchIcon) {
-              return option.searchMenuSpan
+              return option.searchMenuSpan || option.searchSpan
             } else {
-              return option.searchMenuSpan < 6 ? option.searchMenuSpan : 6
+              return option.searchMenuSpan || 6
             }
           })(),
           menuPosition: option.searchMenuPosition || 'center',
@@ -210,6 +215,10 @@ export default create({
     // 搜索清空
     searchReset () {
       this.$refs.form.resetForm();
+    },
+    handleSearchIconShow () {
+      this.show = !this.show;
+      this.crud.$emit('search-icon-change', this.show)
     },
     handleSearchShow () {
       this.searchShow = !this.searchShow;
